@@ -2,15 +2,17 @@ import 'phaser';
 
 import { TitleScene } from './scenes/title-scene';
 import { GameScene } from './scenes/game-scene';
+import { GameOverScene } from './scenes/gameover-scene';
 
 const gameConfig = {
-  width: 680,
+  width: 480,
   height: 480,
-  scene: [TitleScene, GameScene],
+  scene: [TitleScene, GameScene, GameOverScene],
   physics: {
       default: 'arcade',
       arcade: {
-          debug: false
+          debug: true,
+          gravity: {y:0}
       }
   },
 };

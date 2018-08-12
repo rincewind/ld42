@@ -3,11 +3,11 @@ class Egg extends Phaser.GameObjects.Image {
     constructor(scene) {
         super(scene, 0, 0, 'egg');
     }
-    spawn(subspawn) {
+    spawn(x, y, subspawn) {
         this.setActive(true);
         this.setVisible(true);
         this.setScale(2,2);
-        this.setPosition(Phaser.Math.Between(100,500), Phaser.Math.Between(50,400), );
+        this.setPosition(x, y);
         this.tintFill = true;
         this.tween = this.scene.tweens.addCounter({
             from: 0,
@@ -41,14 +41,14 @@ class Shootable extends Phaser.Physics.Arcade.Image {
         this.setActive(true);
         this.setVisible(true);
 
-        this.setVelocity(Phaser.Math.Between(-100,100), Phaser.Math.Between(-100,100));
+        this.setVelocity(Phaser.Math.Between(-300,300), Phaser.Math.Between(-300,300));
         this.setBounce(1,1);
         this.setCollideWorldBounds(true);
         this.setPosition(x, y);
         this.setMass(100);
         this.body.allowRotation = true;
         this.body.setAngularDrag(30);
-        //this.body.useDamping = true;
+        this.body.useDamping = true;
 
         this.alive = true;
         //this.body.reset(this.x, this.y);
@@ -62,7 +62,7 @@ class Shootable extends Phaser.Physics.Arcade.Image {
 
     die () {
         this.alive = false;
-        this.setDrag(200);
+        this.setDrag(0.2);
         this.setMass(this.body.mass * 2);
         this.setTint(0xa0a0a0);
         this.tintFill = true;
@@ -138,13 +138,19 @@ export class GameScene extends Phaser.Scene {
 
 
     create() {
+        this.kills = 0;
+
+        this.world_width = 480;
+        this.world_height = 480;
+
         this.shoot_sound = this.sound.add('shoot');
         this.hit_sound = this.sound.add('hit');
         this.absorb_sound = this.sound.add('absorb');
         this.ship_splosion_sound = this.sound.add('big_explosion');
         this.eggspawn_sound = this.sound.add('eggspawn');
-        this.ship = this.add.image(150, 150, 'ship');
-        this.physics.world.enable([this.ship]);
+        this.ship = this.physics.add.image(150, 150, 'ship');
+        this.ship.setScale(2,2);
+        //this.physics.world.enable([this.ship]);
 
 
         this.anims.create({key: 'explode', hideOnComplete: true,
@@ -154,18 +160,87 @@ export class GameScene extends Phaser.Scene {
         this.splosion = this.add.sprite(100,100,'splosion');
         this.splosion.setVisible(false);
 
-        this.ship.body.setBounce(1,1);
-        this.ship.body.setCollideWorldBounds(true);
+        this.ship.setBounce(1,1);
+        this.ship.setCollideWorldBounds(true);
 
-        this.ship.body.setMass(200);
+        this.ship.setMass(200);
+        this.ship.useDamping = true;
 
 
         this.ship.angle = 90;
-        this.ship.body.setDrag(100);
-        this.ship.body.setAngularDrag(200);
-        this.ship.body.setMaxVelocity(600);
+        this.ship.setDrag(250);
+        this.ship.setAngularDrag(200);
+        this.ship.setMaxVelocity(600);
+
+
+        //  this.input.gamepad.on('down', function (pad, button, index) {
+
+
         this.cursors = this.input.keyboard.createCursorKeys();
-        this.fire_btn = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+
+        let wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+        };
+
+        let power = 500;
+
+        this.input.keyboard.on('keydown_W', (event) => {
+            this.ship.setAccelerationY(-power);
+        });
+        this.input.keyboard.on('keydown_S', (event) => {
+            this.ship.setAccelerationY(power);
+        });
+        this.input.keyboard.on('keydown_A', (event) => {
+            this.ship.setAccelerationX(-power);
+        });
+        this.input.keyboard.on('keydown_D', (event) => {
+            this.ship.setAccelerationX(power);
+        });
+        // stopping
+        this.input.keyboard.on('keyup_W', (event) => {
+            if (wasd['down'].isUp)
+                this.ship.setAccelerationY(0);
+        });
+        this.input.keyboard.on('keyup_S', (event) => {
+            if (wasd['up'].isUp)
+                this.ship.setAccelerationY(0);
+        });
+        this.input.keyboard.on('keyup_A', (event) => {
+            if (wasd['right'].isUp)
+                this.ship.setAccelerationX(0);
+        });
+        this.input.keyboard.on('keyup_D', (event) => {
+            if (wasd['left'].isUp)
+                this.ship.setAccelerationX(0);
+        });
+
+        this.should_fire = false;
+        this.input.on('pointerdown', () => {
+            this.should_fire = true;
+        });
+
+        this.input.on('pointerup', () => {
+            this.should_fire = false;
+        });
+
+
+        this.input.keyboard.on('keydown_Q', (event) => {
+            if (this.input.mouse.locked) {
+                this.input.mouse.releasePointerLock();
+            }
+            this.scene.start('GameOver', {kills: this.kills});
+        }, 0);
+
+        this.input.on('pointermove', (pointer) => {
+            this.ship.setRotation(Phaser.Math.Angle.Between(this.ship.x, this.ship.y, pointer.worldX, pointer.worldY));
+        });
+
+        //this.fire_btn = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
 
         this.ship.last_shot = 0;
 
@@ -217,7 +292,8 @@ export class GameScene extends Phaser.Scene {
 
         this.physics.add.collider(this.projectiles, this.shootables, (projectile, shooty) => {
             if (shooty.alive) {
-                shooty.die()
+                shooty.die();
+                this.kills += 1;
                 this.splosion.setPosition(projectile.x, projectile.y);
                 this.splosion.setVisible(true);
                 this.splosion.setScale(2, 2);
@@ -235,7 +311,7 @@ export class GameScene extends Phaser.Scene {
             [lhs, rhs].forEach((shooty) => {
                 if (shooty.alive && shooty.body.newVelocity.lengthSq() < 400) {
                     console.log('setting velocity')
-                    shooty.setVelocity(Phaser.Math.Between(-150,150), Phaser.Math.Between(-150,150));
+                    shooty.setVelocity(Phaser.Math.Between(-250,250), Phaser.Math.Between(-250,250));
                 }
             });
         });
@@ -246,7 +322,7 @@ export class GameScene extends Phaser.Scene {
                 this.splosion.setVisible(true);
                 this.splosion.setScale(2.5, 2.5);
                 this.splosion.on('animationcomplete', (animation,frame) => {
-                    this.scene.start('Title');
+                    this.scene.start('GameOver', {kills:this.kills});
                 });
                 this.splosion.play('explode');
                 ship.setVisible(false);
@@ -255,41 +331,69 @@ export class GameScene extends Phaser.Scene {
 
             }
         });
-
-
+        this.spawn_egg();
+        this.egg_spawn_event = this.time.addEvent({ delay: 3000, callback: () => { this.spawn_egg(); }, loop: true });
     }
+
+
+    maybe_spawn_random_egg(event) {
+        console.log(event);
+    }
+
+
+    spawn_alien_egg(shooty) {
+        if (shooty.alive) {
+            this.spawn_egg(shooty.x, shooty.y);
+        } else {
+            shooty.egg_spawn_event.remove(false);
+        }
+    }
+
+    spawn_alien_from_egg(egg) {
+        this.eggspawn_sound.play();
+        var shooty = this.shootables.get();
+        if (shooty) {
+            shooty.egg_spawn_event = this.time.addEvent({ delay: 2000, callback: () =>  this.spawn_alien_egg(shooty), loop: true });
+            shooty.spawn(egg.x, egg.y);
+        }
+    }
+
+    spawn_egg(_x, _y) {
+        let x = _x;
+        let y = _y;
+
+        if (typeof x === 'undefined') {
+            x = Phaser.Math.Between(40, this.world_width - 40);
+            y = Phaser.Math.Between(40, this.world_height - 40);
+        }
+
+        var egg = this.eggs.get();
+        if (egg) {
+            egg.spawn(x, y, () => { this.spawn_alien_from_egg(egg); });
+        }
+    }
+
 
     update(time, delta) {
 
-        if (time > this.next_shooty){// spawn something to shoot
 
-            this.next_shooty = time + 3000;
-            var egg = this.eggs.get();
-            if (egg) {
-                egg.spawn(() => {
-                    this.eggspawn_sound.play();
-                    var shooty = this.shootables.get();
-                    if (shooty) {
-                        shooty.spawn(egg.x, egg.y);
-                    }
-                });
-            }
-        }
-
-        if (this.cursors.left.isDown) {
-            this.ship.body.setAngularVelocity(-150);
-        } else if (this.cursors.right.isDown) {
-            this.ship.body.setAngularVelocity(150);
+       /* if (this.cursors.left.isDown || this.wasd.left.isDown) {
+            this.ship.body.setAccelerationX(-1 * delta);
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
+            this.ship.body.setAccelerationX(1 * delta);
         } else {
-            this.ship.body.setAngularVelocity(0);
+            this.ship.body.setAccelerationX(0);
         }
 
-        if (this.cursors.up.isDown) {
-            this.physics.velocityFromRotation(this.ship.rotation, 600, this.ship.body.acceleration);
+        if (this.cursors.up.isDown || this.wasd.up.isDown) {
+            this.ship.body.setAccelerationY(-1 * delta);
+        } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
+            this.ship.body.setAccelerationY(1 * delta);
         } else {
-            this.ship.body.setAcceleration(0);
-        }
-        if (this.fire_btn.isDown && time > this.ship.last_shot) {
+            this.ship.body.setAccelerationY(0);
+        }*/
+
+        if (this.should_fire && time > this.ship.last_shot) {
             var projectile = this.projectiles.get();
 
             if (projectile) {
