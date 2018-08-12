@@ -270,7 +270,6 @@ export class GameScene extends Phaser.Scene {
             scale: {start: 0.6, end: 0}
             //blendMode: 'ADD'
         });
-        engine.startFollow(this.ship);
 
         this.eggs = this.add.group({
             classType: Egg,
@@ -299,6 +298,10 @@ export class GameScene extends Phaser.Scene {
                 this.splosion.setScale(2, 2);
                 this.splosion.play('explode');
                 this.hit_sound.play();
+                if (this.dead_alien_help) {
+                    this.create_tutorial_text(shooty, this.dead_alien_help);
+                    this.dead_alien_help = undefined;
+                }
             } else {
                 this.absorb_sound.play();
             }
@@ -331,8 +334,41 @@ export class GameScene extends Phaser.Scene {
 
             }
         });
-        this.spawn_egg();
+
+
+        this.attachments = [];
+
+        let first_egg = this.spawn_egg(this.world_width/2, this.world_height/2);
+
+        this.create_tutorial_text(first_egg, ["interdimensional egg",  "mostly harmless"]);
+        this.create_tutorial_text(this.ship, ["that's your ship",
+            "WASD to move",
+            "mouse to shoot"]);
+
+
+        this.dead_alien_help = ["dead alien",  "annoyingly persistent"];
+
+
+        this.alien_help =  ["ALIEN! SHOOT IT!",  "DON'T LET IT GET YOU!"];
+
+
         this.egg_spawn_event = this.time.addEvent({ delay: 3000, callback: () => { this.spawn_egg(); }, loop: true });
+    }
+
+    create_tutorial_text(obj, text, color) {
+        let text_config = {fontSize: 12, fill: color || '#ccc',  align: 'center'};
+        let text_obj = this.add.text(-100, -100, text, text_config).setOrigin(0.5, 0);
+        this.attachments.push({master: obj, slave: text_obj, x:0, y:25})
+        this.time.addEvent({ delay: 4000, callback: () =>  { text_obj.setActive(false).setVisible(false); } });
+    }
+
+    update_attachments() {
+        this.attachments.forEach((o) => {
+            if (o.master.active && o.slave.active) {
+                o.slave.setPosition(o.master.x + o.x, o.master.y + o.y);
+            }
+        });
+        this.attachments.filter(o => o.master.active && o.slave.active);
     }
 
 
@@ -355,6 +391,10 @@ export class GameScene extends Phaser.Scene {
         if (shooty) {
             shooty.egg_spawn_event = this.time.addEvent({ delay: 2000, callback: () =>  this.spawn_alien_egg(shooty), loop: true });
             shooty.spawn(egg.x, egg.y);
+            if (this.alien_help) {
+                this.create_tutorial_text(shooty, this.alien_help, '#d3a0a0');
+                this.alien_help = undefined;
+            }
         }
     }
 
@@ -370,13 +410,14 @@ export class GameScene extends Phaser.Scene {
         var egg = this.eggs.get();
         if (egg) {
             egg.spawn(x, y, () => { this.spawn_alien_from_egg(egg); });
+            return egg;
         }
     }
 
 
     update(time, delta) {
 
-
+        this.update_attachments();
        /* if (this.cursors.left.isDown || this.wasd.left.isDown) {
             this.ship.body.setAccelerationX(-1 * delta);
         } else if (this.cursors.right.isDown || this.wasd.right.isDown) {

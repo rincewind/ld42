@@ -2,6 +2,8 @@ const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const webpack = require('webpack');
 
+const ZipPlugin = require('zip-webpack-plugin');
+
 module.exports = {
   entry: {
     app: './src/index.js',
@@ -33,6 +35,7 @@ module.exports = {
   },
 
   plugins: [
+      /*new ZipPlugin({filename: 'shittyshooter.zip',}),*/
     new CopyWebpackPlugin([
       {
         from: path.resolve(__dirname, 'index.html'),
